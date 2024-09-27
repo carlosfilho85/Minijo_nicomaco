@@ -1,81 +1,112 @@
 import bpy
 import math
-import random
 
-SUM = 20
+SUM = 10  
 
-# Função para deletar todos os objetos da cena
 def deleteAll():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete()
-    
-# Função para mover cubos de acordo com a paridade de p
-def move_cube(i,p):
-    if i > p:
-        if p % 2 == 0: 
-            bpy.ops.transform.translate(value=(i*i,(p-1)*i,10))
-        else:
-            bpy.ops.transform.translate(value=(p*i,i*i,10))
-    else:
-        bpy.ops.transform.translate(value=(i*i,i*i,10))
 
-# Função para mover meio cubo
-def move_half_cube(i,p,half):
-    if i > p:
-        if half:
-            bpy.ops.transform.translate(value=((i/2)+(i*(p-1)),i*i,10)) 
-        else:
-            bpy.ops.transform.translate(value=(i*i,(i/2)+(i*(p-1)),10))
-    else:
-        if half:
-            bpy.ops.transform.translate(value=((i*i)+(i/2),i*i,10))
-        else:
-            bpy.ops.transform.translate(value=((i*i)-(i/2),i*i,10))
+def add_wireframe_modifier(obj):
+    mod = obj.modifiers.new(name="Wireframe", type='WIREFRAME')
+    mod.thickness = 0.02  # Ajuste a espessura das bordas conforme necessário
+    mod.use_replace = False  # Mantém as faces originais do cubo
 
-# Função para criar material com cor aleatória
-def create_random_color_material():
-    mat = bpy.data.materials.new(name="Material_Cube")
-    mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = (random.random(), random.random(), random.random(), 1)  # RGBA
+def create_material(color):
+    mat = bpy.data.materials.new(name="Material")
+    mat.diffuse_color = (*color, 1)  # Define a cor no formato RGBA (Alpha = 1)
     return mat
 
-# Função principal que demonstra o teorema de Nicômaco
+def assign_color(obj, color):
+    mat = create_material(color)
+    if obj.data.materials:
+        obj.data.materials[0] = mat
+    else:
+        obj.data.materials.append(mat)
+
+def get_color_by_index(i):
+    colors = [
+        (1, 0, 0),  # Vermelho
+        (1, 1, 0),  # Amarelo
+        (0, 1, 0),  # Verde
+        (0, 0, 1),  # Azul
+        (0.5, 0, 0.5),  # Roxo
+        # Adicione mais cores conforme necessário
+    ]
+    return colors[i % len(colors)]  # Cicla através da lista de cores
+
+def move_cube(i, p):
+    if i > p:
+        if p % 2 == 0: 
+            bpy.ops.transform.translate(value=(i*i, (p-1)*i, 10))
+        else:
+            bpy.ops.transform.translate(value=(p*i, i*i, 10))
+    else:
+        bpy.ops.transform.translate(value=(i*i, i*i, 10))
+
+def move_half_cube(i, p, half):
+    if i > p:
+        if half:
+            bpy.ops.transform.translate(value=((i/2)+(i*(p-1)), i*i, 10)) 
+        else:
+            bpy.ops.transform.translate(value=(i*i, (i/2)+(i*(p-1)), 10))
+    else:
+        if half:
+            bpy.ops.transform.translate(value=((i*i)+(i/2), i*i, 10))
+        else:
+            bpy.ops.transform.translate(value=((i*i)-(i/2), i*i, 10))
+
 def nicomaco():
-    bpy.ops.mesh.primitive_cube_add()
     z = 0
-    for i in range(1,SUM, 1):
+    for i in range(1, SUM):
         z += i
-    bpy.ops.transform.resize(value=(z, z, 1))
-    bpy.ops.transform.translate(value=(z, z, 0.5))
-    
-    for i in range(1, SUM,1):
-        for p in range(1, i+1, 1):
-            bpy.ops.mesh.primitive_cube_add()
-            mat = create_random_color_material()  # Cria uma cor aleatória para cada cubo
-            bpy.context.object.data.materials.append(mat)  # Aplica o material ao cubo
-            
+        # Adiciona o cubo central (base) redimensionado
+        bpy.ops.mesh.primitive_cube_add()
+        bpy.ops.transform.resize(value=(i, i, 1))
+        bpy.ops.transform.translate(value=(z, z, 0.5))
+        obj = bpy.context.object
+        assign_color(obj, get_color_by_index(i))  # Atribui uma cor baseada no valor de i
+        add_wireframe_modifier(obj)  # Adiciona o modificador Wireframe
+        
+        for p in range(1, i+1):
             if i % 2 == 0:
                 if p != i:
-                    bpy.ops.transform.resize(value=(i/2,i,1))
+                    bpy.ops.mesh.primitive_cube_add()
+                    bpy.ops.transform.resize(value=(i/2, i, 1))
                     bpy.ops.transform.rotate(value=(math.pi/2), orient_axis="Z")
-                    move_half_cube(i,p,False)
+                    move_half_cube(i, p, False)
+                    obj = bpy.context.object
+                    assign_color(obj, get_color_by_index(i))
+                    add_wireframe_modifier(obj)
+                    
                     bpy.ops.mesh.primitive_cube_add()
-                    bpy.ops.transform.resize(value=(i/2,i,1))
-                    move_half_cube(i,p,True)
-                    mat = create_random_color_material()  # Nova cor para o segundo cubo
-                    bpy.context.object.data.materials.append(mat)
+                    bpy.ops.transform.resize(value=(i/2, i, 1))
+                    move_half_cube(i, p, True)
+                    obj = bpy.context.object
+                    assign_color(obj, get_color_by_index(i))
+                    add_wireframe_modifier(obj)
                 else:
-                    bpy.ops.transform.resize(value=(i/2,i,1))
-                    move_half_cube(i,p,False)
                     bpy.ops.mesh.primitive_cube_add()
-                    bpy.ops.transform.resize(value=(i/2,i,1))
-                    move_half_cube(i,p,True)
-                    mat = create_random_color_material()  # Nova cor para o cubo final
-                    bpy.context.object.data.materials.append(mat)
+                    bpy.ops.transform.resize(value=(i/2, i, 1))
+                    move_half_cube(i, p, False)
+                    obj = bpy.context.object
+                    assign_color(obj, get_color_by_index(i))
+                    add_wireframe_modifier(obj)
+                    
+                    bpy.ops.mesh.primitive_cube_add()
+                    bpy.ops.transform.resize(value=(i/2, i, 1))
+                    move_half_cube(i, p, True)
+                    obj = bpy.context.object
+                    assign_color(obj, get_color_by_index(i))
+                    add_wireframe_modifier(obj)
             else:
-                bpy.ops.transform.resize(value=(i,i,1))
-                move_cube(i,p)
-    
+                bpy.ops.mesh.primitive_cube_add()
+                bpy.ops.transform.resize(value=(i, i, 1))
+                move_cube(i, p)
+                obj = bpy.context.object
+                assign_color(obj, get_color_by_index(i))
+                add_wireframe_modifier(obj)
+
 deleteAll()
 nicomaco()
+
